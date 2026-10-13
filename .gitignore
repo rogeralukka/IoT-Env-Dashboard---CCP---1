@@ -1,0 +1,36 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python cache & build
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & temp test dumps
+*.log
+uvicorn_out.log
+uvicorn_err.log
+scratch/
+chrome_dom.html
+find_viewbox.py
+
+# Generated backend telemetry readings (temporary runtime data)
+iot-env-dashboard/backend/data/*.json
+!iot-env-dashboard/backend/data/.gitkeep
+
+# Node / Browser
+node_modules/
+.playwright/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

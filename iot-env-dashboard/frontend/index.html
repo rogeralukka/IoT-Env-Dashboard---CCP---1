@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="IoT Environmental Dashboard simulating ESP32, DHT11, and AWS Cloud Architecture">
+  <title>IoT Environmental Dashboard • Virtual AWS</title>
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <!-- Google Fonts: Space Grotesk, IBM Plex Mono, Silkscreen & VT323 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Silkscreen:wght@400;700&family=Space+Grotesk:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Early Theme Pre-Hydration -->
+  <script>
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem("dashboard_theme");
+        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var theme = savedTheme || (prefersDark ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Workbench Theme Stylesheet -->
+  <link rel="stylesheet" href="./src/styles/theme.css?v=3.12.0">
+</head>
+<body>
+  <!-- 1px Scroll Sentinel for zero-event scroll detection at 8px threshold -->
+  <div id="scrollSentinel" class="scroll-sentinel" aria-hidden="true"></div>
+
+  <!-- Application Shell Header (Sticky with blur, border & 24px gradient fade on scroll) -->
+  <header class="app-header" role="banner">
+    <div class="app-header-inner">
+      <div class="brand-section">
+        <div class="brand-titles">
+          <h1>IoT Environmental Dashboard</h1>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Dark / Light Mode Toggle Button -->
+        <button id="themeToggleBtn" class="btn-theme-toggle" aria-label="Toggle Dark or Light theme" title="Toggle Light/Dark Theme">
+          <svg id="themeIconSun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="themeIconMoon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+
+        <!-- Mode Pill Toggle: Requirement 2: [Simulation] [Web interface] -->
+        <nav class="mode-toggle" aria-label="Dashboard presentation modes">
+          <button id="modeToggleSim" class="active" aria-pressed="true" aria-controls="modeContainer">
+            Simulation
+          </button>
+          <button id="modeToggleWeb" aria-pressed="false" aria-controls="modeContainer">
+            Web interface
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Soft Progressive Blur & Eased Color Fade Zone (AdiSetu Style) -->
+    <div class="header-fade-zone" aria-hidden="true">
+      <div class="fade-blur-layer fade-blur-3"></div>
+      <div class="fade-blur-layer fade-blur-2"></div>
+      <div class="fade-blur-layer fade-blur-1"></div>
+      <div class="fade-color-layer"></div>
+      <div class="fade-grid-layer"></div>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Main Dynamic Mode Container (Swapped by Toggle) -->
+    <main id="modeContainer" role="main" aria-live="polite">
+      <!-- Injected by WebMode or SimulationMode -->
+    </main>
+  </div>
+
+  <!-- Application Bootstrap -->
+  <script type="module" src="./src/main.js?v=3.12.0"></script>
+</body>
+</html>
