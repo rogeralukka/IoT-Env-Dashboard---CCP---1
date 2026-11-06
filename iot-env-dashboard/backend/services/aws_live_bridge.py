@@ -5,6 +5,7 @@ Connects local telemetry to actual AWS Services (IoT Core, S3, CloudWatch, Lambd
 
 import os
 import json
+import time
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -18,6 +19,8 @@ class AWSLiveBridge:
         self.iot_data = None
         self.s3 = None
         self.cw = None
+        self.dynamodb = None
+        self.dynamodb_table = None
         self.bucket_name = None
         self.region = "us-east-1"
         self.account_id = None
@@ -25,17 +28,20 @@ class AWSLiveBridge:
         self._load_env()
 
     def _load_env(self):
-        env_path = Path(__file__).resolve().parents[2] / ".env"
-        if not env_path.exists():
-            return
-
         env_vars = {}
-        with open(env_path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, v = line.split("=", 1)
-                    env_vars[k.strip()] = v.strip()
+        # Search both iot-env-dashboard/.env and root .env
+        candidates = [
+            Path(__file__).resolve().parents[2] / ".env",
+            Path(__file__).resolve().parents[3] / ".env",
+        ]
+        for p in candidates:
+            if p.exists():
+                with open(p, "r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            env_vars[k.strip()] = v.strip()
 
         if "AWS_ACCESS_KEY_ID" in env_vars and "AWS_SECRET_ACCESS_KEY" in env_vars:
             try:
@@ -52,25 +58,84 @@ class AWSLiveBridge:
                 )
                 self.s3 = self.session.client("s3")
                 self.cw = self.session.client("cloudwatch")
+                self.dynamodb = self.session.resource("dynamodb")
+                self.dynamodb_table = self.dynamodb.Table("IoTEnvironmentalReadings")
+
                 if self.iot_endpoint:
-                    self.iot_data = self.session.client("iot-data", endpoint_url=f"https://{self.iot_endpoint}")
+                    try:
+                        self.iot_data = self.session.client("iot-data", endpoint_url=f"https://{self.iot_endpoint}")
+                    except Exception:
+                        self.iot_data = None
+
                 self.is_configured = True
                 logger.info("AWS Live Bridge successfully connected to region %s", self.region)
             except Exception as e:
                 logger.warning("AWS Live Bridge initialization failed: %s", e)
 
+    def forward_reading(self, record: Dict[str, Any]):
+        """Forwards live processed telemetry record directly into AWS DynamoDB and S3."""
+        if not self.is_configured:
+            return
+
+        from decimal import Decimal
+        import datetime
+
+        # 1. Direct write into Amazon DynamoDB table
+        if self.dynamodb_table:
+            try:
+                ts = record.get("timestamp")
+                if isinstance(ts, (int, float)):
+                    # Formatted ISO or string epoch
+                    iso_time = datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc).isoformat()
+                else:
+                    iso_time = str(ts or datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+                item = {
+                    "device_id": str(record.get("device_id", "ESP32_DHT11_Node")),
+                    "timestamp": iso_time,
+                    "packet_id": Decimal(str(record.get("packet_id", 0))),
+                    "temperature_c": Decimal(str(round(float(record.get("temperature_c", 0.0)), 1))),
+                    "humidity_pct": Decimal(str(round(float(record.get("humidity_pct", 0.0)), 1))),
+                    "heat_index_c": Decimal(str(round(float(record.get("heat_index_c", 0.0)), 1))),
+                    "dew_point_c": Decimal(str(round(float(record.get("dew_point_c", 0.0)), 1))),
+                    "wifi_rssi_dbm": Decimal(str(record.get("wifi_rssi_dbm", -64))),
+                    "sensor_status": str(record.get("sensor_status", "OK"))
+                }
+                self.dynamodb_table.put_item(Item=item)
+            except Exception as e:
+                logger.error("Failed to write live reading to DynamoDB: %s", e)
+
+        # 2. Write to S3 datalake
+        if self.s3 and self.bucket_name:
+            try:
+                packet_id = record.get("packet_id", 0)
+                ts_raw = record.get("timestamp", time.time())
+                now_dt = datetime.datetime.now(datetime.timezone.utc)
+                date_prefix = now_dt.strftime("%Y/%m/%d")
+                s3_key = f"readings/{date_prefix}/reading_{int(time.time())}_p{packet_id}.json"
+                self.s3.put_object(
+                    Bucket=self.bucket_name,
+                    Key=s3_key,
+                    Body=json.dumps(record, default=str),
+                    ContentType="application/json"
+                )
+            except Exception as e:
+                logger.error("Failed to write live reading to S3: %s", e)
+
+        # 3. Best-effort IoT Core publish
+        if self.iot_data:
+            try:
+                self.iot_data.publish(
+                    topic="iot/esp32/dht11/telemetry",
+                    qos=1,
+                    payload=json.dumps(record, default=str)
+                )
+            except Exception:
+                pass
+
     def publish_to_iot_core(self, topic: str, payload: Dict[str, Any]):
         """Forwards packet to real AWS IoT Core MQTT broker."""
-        if not self.is_configured or not self.iot_data:
-            return
-        try:
-            self.iot_data.publish(
-                topic=topic,
-                qos=1,
-                payload=json.dumps(payload)
-            )
-        except Exception as e:
-            logger.error("Failed to forward packet to real AWS IoT Core: %s", e)
+        self.forward_reading(payload)
 
     def get_live_aws_status(self) -> Dict[str, Any]:
         """Queries actual AWS account for live S3 objects and CloudWatch alarms."""
