@@ -16,32 +16,6 @@
 
 import { deviceStore, renderOledSvg } from "../../services/deviceStore.js?v=3.12.0";
 
-/**
- * Converts hex color code to rgba string.
- */
-function hexToRgba(hex, alpha) {
-  let c = hex.replace("#", "");
-  if (c.length === 3) c = c.split("").map((x) => x + x).join("");
-  const num = parseInt(c, 16);
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-/**
- * Creates dynamic vertical gradient from line color at topAlpha down to 0% at bottom.
- */
-function getVerticalGradient(context, hexColor, topAlpha = 0.22) {
-  const chart = context.chart;
-  const { ctx, chartArea } = chart;
-  if (!chartArea) return null;
-  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-  gradient.addColorStop(0, hexToRgba(hexColor, topAlpha));
-  gradient.addColorStop(1, hexToRgba(hexColor, 0));
-  return gradient;
-}
-
 export class SimulationMode {
   constructor(container) {
     this.container = container;
@@ -169,20 +143,10 @@ export class SimulationMode {
       this.triggerDataFlowAnimation();
     }
 
-    // 4. Update DHT11 Live Readout inside Circuit Schematic
-    const dht11Readout = this.container.querySelector("#dht11LiveReadout");
-    if (dht11Readout) {
-      if (state.isPoweredOn && !state.isBooting) {
-        dht11Readout.textContent = `${Number(state.temperature).toFixed(1)}C  ${Math.round(state.humidity)}%`;
-      } else {
-        dht11Readout.textContent = "--";
-      }
-    }
-
-    // 5. Update rolling 30-point chart (in-place, no animation flicker)
+    // 4. Update rolling 30-point chart (in-place, no animation flicker)
     this.updateSimChart(history);
 
-    // 6. Realign zoom connector wedge
+    // 5. Realign zoom connector wedge
     this.updateZoomWedge();
   }
 
@@ -285,9 +249,6 @@ export class SimulationMode {
     const isDarkMode = document.documentElement.getAttribute("data-theme") === "dark";
     const gridColor = isDarkMode ? "rgba(233, 235, 238, 0.06)" : "rgba(27, 25, 22, 0.08)";
     const textColor = isDarkMode ? "#9aa1ab" : "#5e5950";
-    const tempColor = isDarkMode ? "#fb923c" : "#ea580c";
-    const hiColor = isDarkMode ? "#b794f6" : "#7c3aed";
-    const rhColor = isDarkMode ? "#4ade80" : "#167a3f";
 
     this.simChart = new Chart(ctx, {
       type: "line",
@@ -297,12 +258,12 @@ export class SimulationMode {
           {
             label: "Temperature (°C)",
             data: [],
-            borderColor: tempColor,
-            backgroundColor: (c) => getVerticalGradient(c, tempColor, isDarkMode ? 0.18 : 0.22),
-            borderWidth: 2,
-            pointRadius: 2.5,
-            pointBackgroundColor: tempColor,
-            pointBorderColor: isDarkMode ? "#0e1013" : "#ffffff",
+            borderColor: isDarkMode ? "#fb923c" : "#ea580c",
+            backgroundColor: isDarkMode ? "rgba(251, 146, 60, 0.08)" : "rgba(234, 88, 12, 0.06)",
+            borderWidth: 2.2,
+            pointRadius: 3,
+            pointBackgroundColor: isDarkMode ? "#fb923c" : "#ea580c",
+            pointBorderColor: isDarkMode ? "#171a1f" : "#ffffff",
             yAxisID: "yTemp",
             tension: 0.25,
             fill: true,
@@ -310,7 +271,7 @@ export class SimulationMode {
           {
             label: "Heat Index (°C)",
             data: [],
-            borderColor: hiColor,
+            borderColor: isDarkMode ? "#f59e0b" : "#d97706",
             borderDash: [5, 4],
             borderWidth: 2,
             pointRadius: 0,
@@ -321,11 +282,11 @@ export class SimulationMode {
           {
             label: "Relative Humidity (%)",
             data: [],
-            borderColor: rhColor,
-            borderWidth: 2,
-            pointRadius: 2.5,
-            pointBackgroundColor: rhColor,
-            pointBorderColor: isDarkMode ? "#0e1013" : "#ffffff",
+            borderColor: isDarkMode ? "#4ade80" : "#167a3f",
+            borderWidth: 2.2,
+            pointRadius: 3,
+            pointBackgroundColor: isDarkMode ? "#4ade80" : "#167a3f",
+            pointBorderColor: isDarkMode ? "#171a1f" : "#ffffff",
             yAxisID: "yHum",
             tension: 0.25,
             fill: false,
@@ -346,9 +307,6 @@ export class SimulationMode {
             borderColor: isDarkMode ? "#e9ebee" : "#1b1916",
             borderWidth: 2,
             padding: 8,
-            cornerRadius: 6,
-            titleFont: { family: "'Space Grotesk', sans-serif", weight: 600, size: 12 },
-            bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
           },
         },
         scales: {
@@ -357,7 +315,7 @@ export class SimulationMode {
             ticks: {
               color: textColor,
               font: { family: "'IBM Plex Mono', monospace", size: 10 },
-              maxTicksLimit: 6,
+              maxTicksLimit: 10,
             },
           },
           yTemp: {
@@ -368,7 +326,7 @@ export class SimulationMode {
             title: {
               display: true,
               text: "Temp & Heat Index (°C)",
-              color: tempColor,
+              color: isDarkMode ? "#fb923c" : "#ea580c",
               font: { family: "'Space Grotesk', sans-serif", weight: 600, size: 11 },
             },
             grid: { color: gridColor },
@@ -385,7 +343,7 @@ export class SimulationMode {
             title: {
               display: true,
               text: "Relative Humidity (%)",
-              color: rhColor,
+              color: isDarkMode ? "#4ade80" : "#167a3f",
               font: { family: "'Space Grotesk', sans-serif", weight: 600, size: 11 },
             },
             grid: { drawOnChartArea: false },
@@ -404,11 +362,6 @@ export class SimulationMode {
    * Calls chart.update('none') to prevent replay of entry animations.
    */
   updateSimChart(history = []) {
-    const emptyState = this.container.querySelector("#simChartEmptyState");
-    if (emptyState) {
-      emptyState.classList.toggle("hidden", history.length > 0);
-    }
-
     if (!this.simChart) return;
 
     const labels = history.map((p) => p.time);
@@ -425,25 +378,23 @@ export class SimulationMode {
     const isDarkMode = document.documentElement.getAttribute("data-theme") === "dark";
     const gridColor = isDarkMode ? "rgba(233, 235, 238, 0.06)" : "rgba(27, 25, 22, 0.08)";
     const textColor = isDarkMode ? "#9aa1ab" : "#5e5950";
-    const tempColor = isDarkMode ? "#fb923c" : "#ea580c";
-    const hiColor = isDarkMode ? "#b794f6" : "#7c3aed";
-    const rhColor = isDarkMode ? "#4ade80" : "#167a3f";
 
     this.simChart.data.labels = labels;
     this.simChart.data.datasets[0].data = dataTemp;
-    this.simChart.data.datasets[0].borderColor = tempColor;
-    this.simChart.data.datasets[0].backgroundColor = (c) =>
-      getVerticalGradient(c, tempColor, isDarkMode ? 0.18 : 0.22);
-    this.simChart.data.datasets[0].pointBackgroundColor = tempColor;
-    this.simChart.data.datasets[0].pointBorderColor = isDarkMode ? "#0e1013" : "#ffffff";
+    this.simChart.data.datasets[0].borderColor = isDarkMode ? "#fb923c" : "#ea580c";
+    this.simChart.data.datasets[0].backgroundColor = isDarkMode
+      ? "rgba(251, 146, 60, 0.08)"
+      : "rgba(234, 88, 12, 0.06)";
+    this.simChart.data.datasets[0].pointBackgroundColor = isDarkMode ? "#fb923c" : "#ea580c";
+    this.simChart.data.datasets[0].pointBorderColor = isDarkMode ? "#171a1f" : "#ffffff";
 
     this.simChart.data.datasets[1].data = dataHi;
-    this.simChart.data.datasets[1].borderColor = hiColor;
+    this.simChart.data.datasets[1].borderColor = isDarkMode ? "#f59e0b" : "#d97706";
 
     this.simChart.data.datasets[2].data = dataRh;
-    this.simChart.data.datasets[2].borderColor = rhColor;
-    this.simChart.data.datasets[2].pointBackgroundColor = rhColor;
-    this.simChart.data.datasets[2].pointBorderColor = isDarkMode ? "#0e1013" : "#ffffff";
+    this.simChart.data.datasets[2].borderColor = isDarkMode ? "#4ade80" : "#167a3f";
+    this.simChart.data.datasets[2].pointBackgroundColor = isDarkMode ? "#4ade80" : "#167a3f";
+    this.simChart.data.datasets[2].pointBorderColor = isDarkMode ? "#171a1f" : "#ffffff";
 
     if (this.simChart.options.scales && this.simChart.options.scales.yTemp) {
       this.simChart.options.scales.yTemp.suggestedMin = Math.floor(minT - padT);
@@ -503,9 +454,9 @@ export class SimulationMode {
               </div>
             </div>
 
-            <!-- SVG Circuit Schematic (Restored viewBox 0 14 1024 460) -->
+            <!-- SVG Circuit Schematic (Tightly cropped viewBox 36 18 930 454) -->
             <div class="circuit-svg-container" aria-label="Circuit wiring diagram of ESP32, DHT11, and SSD1306 OLED">
-              <svg id="schematicSvg" width="100%" height="100%" viewBox="0 14 1024 460" preserveAspectRatio="xMidYMid meet">
+              <svg id="schematicSvg" width="100%" height="100%" viewBox="36 18 930 454" preserveAspectRatio="xMidYMid meet">
                 <defs>
                   <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
                     <feGaussianBlur stdDeviation="2.5" result="blur" />
@@ -561,22 +512,22 @@ export class SimulationMode {
                   <circle cx="198" cy="100" r="2.5" fill="#09090b"/>
                   <text x="198" y="122" font-family="monospace" font-size="7.5" font-weight="700" fill="#ffffff" text-anchor="middle">SDA</text>
 
-                  <!-- 0.96" OLED Glass Screen (2:1 aspect ratio matching zoomed OLED screen) -->
-                  <rect id="svgOledGlass" x="49.5" y="160" width="216" height="108" rx="4" fill="#02060a" stroke="rgba(255, 255, 255, 0.14)" stroke-width="1"/>
+                  <!-- 0.96" OLED Glass Screen -->
+                  <rect id="svgOledGlass" x="48" y="132" width="219" height="152" rx="4" fill="#030712" stroke="#0ea5e9" stroke-width="1.2"/>
 
                   <!-- Yellow Flex Ribbon Cable (Bottom) -->
-                  <rect x="115" y="268" width="85" height="14" rx="1" fill="#d97706" opacity="0.9"/>
-                  <line x1="125" y1="268" x2="125" y2="282" stroke="#b45309" stroke-width="1"/>
-                  <line x1="145" y1="268" x2="145" y2="282" stroke="#b45309" stroke-width="1"/>
-                  <line x1="165" y1="268" x2="165" y2="282" stroke="#b45309" stroke-width="1"/>
-                  <line x1="185" y1="268" x2="185" y2="282" stroke="#b45309" stroke-width="1"/>
+                  <rect x="115" y="280" width="85" height="14" rx="1" fill="#d97706" opacity="0.9"/>
+                  <line x1="125" y1="280" x2="125" y2="294" stroke="#b45309" stroke-width="1"/>
+                  <line x1="145" y1="280" x2="145" y2="294" stroke="#b45309" stroke-width="1"/>
+                  <line x1="165" y1="280" x2="165" y2="294" stroke="#b45309" stroke-width="1"/>
+                  <line x1="185" y1="280" x2="185" y2="294" stroke="#b45309" stroke-width="1"/>
 
-                  <!-- Inner 256x128 Vector Phosphor Display (2:1 aspect ratio) -->
-                  <svg id="smallOledScreenSvg" x="51.5" y="161" width="212" height="106" viewBox="0 0 256 128" preserveAspectRatio="xMidYMid meet"></svg>
+                  <!-- Inner 256x128 Vector Phosphor Display -->
+                  <svg id="smallOledScreenSvg" x="50" y="134" width="215" height="146" viewBox="0 0 256 128" preserveAspectRatio="xMidYMid meet"></svg>
                 </g>
 
-                <!-- 2px dashed terracotta rounded frame around small OLED screen (2:1 aspect ratio matching large bezel) -->
-                <rect id="oledHighlightFrame" x="43.5" y="157" width="228" height="114" rx="6" fill="none" stroke="var(--accent-terracotta)" stroke-width="2" stroke-dasharray="6 4"/>
+                <!-- 2px dashed terracotta rounded frame around ONLY small OLED screen glass -->
+                <rect id="oledHighlightFrame" x="43" y="127" width="229" height="162" rx="8" fill="none" stroke="var(--accent-terracotta)" stroke-width="2" stroke-dasharray="6 4"/>
 
                 <!-- Label Box: OLED Display (SSD1306) -->
                 <g class="schematic-label-pill" transform="translate(47.5, 370)">
@@ -744,11 +695,11 @@ export class SimulationMode {
                   <circle cx="905" cy="350" r="5" fill="#18181b" stroke="#9ca3af" stroke-width="2"/><circle cx="905" cy="350" r="2.5" fill="#09090b"/>
                 </g>
 
-                <!-- Label Box: DHT11 with live readout under title -->
+                <!-- Label Box: DHT11 -->
                 <g class="schematic-label-pill" transform="translate(760, 422)">
                   <rect width="200" height="46" rx="10"/>
-                  <text class="pill-title" x="100" y="19" text-anchor="middle">DHT11</text>
-                  <text id="dht11LiveReadout" class="pill-sub" x="100" y="36" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-weight="600">--</text>
+                  <text class="pill-title" x="100" y="20" text-anchor="middle">DHT11</text>
+                  <text class="pill-sub" x="100" y="36" text-anchor="middle">Temperature &amp; Humidity Sensor</text>
                 </g>
 
                 <!-- ================= 4. ORTHOGONAL JUMPER WIRES ================= -->
@@ -805,13 +756,12 @@ export class SimulationMode {
               <h2>Live Telemetry</h2>
             </div>
             <div class="chart-legend-custom">
-              <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-temp, #ea580c);"></span> Temp (°C)</span>
-              <span class="legend-item"><span class="legend-line dashed" style="border-color: #7c3aed;"></span> Heat Index (°C)</span>
-              <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-rh, #167a3f);"></span> Humidity (%)</span>
+              <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-temp);"></span> Temp (°C)</span>
+              <span class="legend-item"><span class="legend-line dashed" style="border-color: #f59e0b;"></span> Heat Index (°C)</span>
+              <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-rh);"></span> Humidity (%)</span>
             </div>
           </div>
           <div class="chart-container-wrapper sim-chart-wrapper">
-            <div id="simChartEmptyState" class="chart-empty-state">Power on the device to start recording</div>
             <canvas id="simTelemetryChart"></canvas>
           </div>
         </article>

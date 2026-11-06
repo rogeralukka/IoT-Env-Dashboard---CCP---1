@@ -1,3 +1,8 @@
+# Environment variables & secrets
+.env
+*.env
+iot-env-dashboard/.env
+
 # Virtual Environment
 .venv/
 env/

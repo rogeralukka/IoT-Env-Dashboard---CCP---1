@@ -2,6 +2,7 @@
 Cloud Services Audit Route.
 AWS Architecture Mapping: Mimics AWS Management Console / AWS CLI read operations
 for AWS IoT Core, AWS Lambda, Amazon S3, and Amazon CloudWatch.
+Also provides live query bridge to actual AWS Academy cloud resources when configured.
 """
 
 from fastapi import APIRouter
@@ -10,6 +11,7 @@ from backend.services.iot_core import iot_core
 from backend.services.s3_store import s3_store
 from backend.services.lambda_processor import lambda_processor
 from backend.services.cloudwatch import cloudwatch
+from backend.services.aws_live_bridge import aws_live_bridge
 
 router = APIRouter(prefix="/api/cloud", tags=["Cloud Services (Virtual AWS)"])
 
@@ -46,6 +48,15 @@ def get_cloudwatch_alarms() -> Dict[str, Any]:
     current operational states, recent metric buffer, and transition history.
     """
     return cloudwatch.get_status()
+
+
+@router.get("/live-aws", summary="Inspect Real AWS Account Status (S3, CloudWatch, IoT Core)")
+def get_real_aws_status() -> Dict[str, Any]:
+    """
+    Queries your connected real AWS Academy account for live S3 data lake files,
+    CloudWatch alarms, and IoT Core endpoint status.
+    """
+    return aws_live_bridge.get_live_aws_status()
 
 
 @router.post("/reset", summary="Reset session telemetry and virtual AWS services")

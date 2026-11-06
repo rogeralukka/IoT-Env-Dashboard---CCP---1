@@ -44,7 +44,7 @@ export function renderOledSvg(state) {
   if (!state.isPoweredOn) {
     return `
       ${defs}
-      <rect width="256" height="128" rx="4" fill="#02060a" />
+      <rect width="256" height="128" rx="4" fill="#030712" />
       <rect width="256" height="128" fill="url(#oledPixelGrid)" pointer-events="none" />
       <text x="128" y="69" font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" font-size="13" font-weight="500" fill="#475569" text-anchor="middle" letter-spacing="2">POWER OFF</text>
     `;
@@ -53,7 +53,7 @@ export function renderOledSvg(state) {
   if (state.isBooting) {
     return `
       ${defs}
-      <rect width="256" height="128" rx="4" fill="#02060a" />
+      <rect width="256" height="128" rx="4" fill="#030712" />
       <rect width="256" height="128" fill="url(#oledPixelGrid)" pointer-events="none" />
       <g font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" fill="#38bdf8" filter="url(#oledGlow)">
         <text x="128" y="56" font-size="16" font-weight="600" text-anchor="middle" letter-spacing="1">ESP32 BOOT</text>
@@ -84,15 +84,13 @@ export function renderOledSvg(state) {
   if (dpNum < 13.0) dpWord = "DRY";
   else if (dpNum > 18.0) dpWord = "MUGGY";
 
-  // Row 4 footer text (strict 24-hour HH:MM:SS)
-  const now = new Date();
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const timeStr = state.timeStr || `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+  // Row 4 footer text
+  const timeStr = state.timeStr || new Date().toTimeString().split(" ")[0];
   const upStr = state.uptimeStr || "UP 00:00:00";
 
   return `
     ${defs}
-    <rect width="256" height="128" rx="4" fill="#02060a" />
+    <rect width="256" height="128" rx="4" fill="#030712" />
     <rect width="256" height="128" fill="url(#oledPixelGrid)" pointer-events="none" />
     <g font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" fill="#38bdf8" filter="url(#oledGlow)">
       <!-- Row 1 (y: 6 to 22): RSSI Signal Bars + dBm | "WIFI OK" | "AWS OK" | PKT counter -->

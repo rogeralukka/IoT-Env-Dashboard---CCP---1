@@ -151,11 +151,11 @@ class App {
     if (mode === "web") {
       if (this.modeToggleWeb) {
         this.modeToggleWeb.classList.add("active");
-        this.modeToggleWeb.setAttribute("aria-pressed", "true");
+        this.modeToggleWeb.setAttribute("aria-selected", "true");
       }
       if (this.modeToggleSim) {
         this.modeToggleSim.classList.remove("active");
-        this.modeToggleSim.setAttribute("aria-pressed", "false");
+        this.modeToggleSim.setAttribute("aria-selected", "false");
       }
 
       this.activeModeInstance = new WebMode(this.modeContainer);
@@ -163,11 +163,11 @@ class App {
     } else {
       if (this.modeToggleSim) {
         this.modeToggleSim.classList.add("active");
-        this.modeToggleSim.setAttribute("aria-pressed", "true");
+        this.modeToggleSim.setAttribute("aria-selected", "true");
       }
       if (this.modeToggleWeb) {
         this.modeToggleWeb.classList.remove("active");
-        this.modeToggleWeb.setAttribute("aria-pressed", "false");
+        this.modeToggleWeb.setAttribute("aria-selected", "false");
       }
 
       this.activeModeInstance = new SimulationMode(this.modeContainer);

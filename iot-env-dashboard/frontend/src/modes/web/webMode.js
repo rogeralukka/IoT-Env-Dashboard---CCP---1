@@ -18,41 +18,6 @@ import { apiClient } from "../../api/client.js?v=3.2.0";
 import { deviceStore } from "../../services/deviceStore.js?v=3.12.0";
 
 /**
- * Formats a Date object or timestamp (ms) to strict 24-hour HH:MM:SS string.
- */
-function format24Time(timestampMs = Date.now()) {
-  const d = new Date(timestampMs);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-/**
- * Converts hex color code to rgba string.
- */
-function hexToRgba(hex, alpha) {
-  let c = hex.replace("#", "");
-  if (c.length === 3) c = c.split("").map((x) => x + x).join("");
-  const num = parseInt(c, 16);
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-/**
- * Creates dynamic vertical gradient from line color at topAlpha down to 0% at bottom.
- */
-function getVerticalGradient(context, hexColor, topAlpha = 0.22) {
-  const chart = context.chart;
-  const { ctx, chartArea } = chart;
-  if (!chartArea) return null;
-  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-  gradient.addColorStop(0, hexToRgba(hexColor, topAlpha));
-  gradient.addColorStop(1, hexToRgba(hexColor, 0));
-  return gradient;
-}
-
-/**
  * Generates lightweight vector sparkline SVG (20 points, no axes, endpoint dot).
  */
 export function generateSparklineSvg(points, strokeColor) {
@@ -186,7 +151,11 @@ export class WebMode {
       const hi = calculateHeatIndex(temp, hum);
       const dp = calculateDewPoint(temp, hum);
 
-      const timeLabel = format24Time(ts);
+      const timeLabel = new Date(ts).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
 
       this.packetCounter++;
       this.sensorHistory.push({
@@ -507,7 +476,11 @@ export class WebMode {
    * Ingests a sensor packet (from SSE stream or local ticker).
    */
   handleLocalSensorPacket(packet) {
-    const timeLabel = format24Time((packet.timestamp || Date.now() / 1000) * 1000);
+    const timeLabel = new Date((packet.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
 
     const temp = Number(packet.temperature_c);
     const hum = Number(packet.humidity_pct);
@@ -544,13 +517,7 @@ export class WebMode {
       <!-- Hazard Alert Banner -->
       <aside id="hazardAlertBanner" class="hazard-banner hidden" role="alert" aria-live="assertive">
         <div class="hazard-content">
-          <span class="hazard-icon" style="display: inline-flex; align-items: center; color: currentColor;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-          </span>
+          <span class="hazard-icon">⚠️</span>
           <div>
             <div id="hazardAlertTitle" class="hazard-title">Environmental Threshold Alert</div>
             <div id="hazardAlertDesc" class="hazard-desc">Elevated heat index or humidity detected.</div>
@@ -573,15 +540,7 @@ export class WebMode {
 
           <div class="toolbar-right">
             <span id="sensorPacketBadge" class="card-badge badge-normal mono-num">Packet: #${this.packetCounter}</span>
-            <span id="sensorRssiBadge" class="card-badge badge-comfortable mono-num" style="display: inline-flex; align-items: center; gap: 0.35rem;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-                <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-                <line x1="12" y1="20" x2="12.01" y2="20"/>
-              </svg>
-              <span>-64 dBm</span>
-            </span>
+            <span id="sensorRssiBadge" class="card-badge badge-comfortable mono-num">📶 -64 dBm</span>
             <button id="toggleSensorStreamBtn" class="status-toggle-pill is-streaming" role="switch" aria-checked="true" title="Pause or resume live sensor telemetry">
               <span class="status-stream-dot" aria-hidden="true"></span>
               <span id="sensorStreamStatusLabel">Live Streaming</span>
@@ -591,14 +550,7 @@ export class WebMode {
 
         <!-- Device Off Notice Banner -->
         <div id="indoorDeviceOffNotice" class="indoor-device-off-notice hidden" role="note">
-          <span class="notice-icon" style="display: inline-flex; align-items: center; color: currentColor;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22v-5"/>
-              <path d="M9 8V2"/>
-              <path d="M15 2v6"/>
-              <path d="M18 8H6a4 4 0 0 0-4 4v1a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-1a4 4 0 0 0-4-4z"/>
-            </svg>
-          </span>
+          <span class="notice-icon">🔌</span>
           <span class="notice-text">Device off, power it on in Simulation</span>
         </div>
 
@@ -764,12 +716,11 @@ export class WebMode {
               <h2>Live Telemetry</h2>
             </div>
             <div class="chart-legend-custom">
-              <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-temp, #ea580c);"></span> Sensor Temp (°C)</span>
-              <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-rh, #167a3f);"></span> Sensor RH (%RH)</span>
+              <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-temp);"></span> Sensor Temp (°C)</span>
+              <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-rh);"></span> Sensor RH (%RH)</span>
             </div>
           </div>
           <div class="chart-container-wrapper">
-            <div id="sensorChartEmptyState" class="chart-empty-state">Power on the device to start recording</div>
             <canvas id="sensorTelemetryChart" aria-label="Sensor real-time telemetry chart" role="img"></canvas>
           </div>
         </article>
@@ -782,11 +733,7 @@ export class WebMode {
         <div class="section-header-banner">
           <div class="section-header-info">
             <h2 id="secWeatherHeading" class="section-title">
-              <span style="display: inline-flex; align-items: center; color: currentColor;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
-                </svg>
-              </span>
+              <span>🌦️</span>
               Outdoor (Open-Meteo)
             </h2>
           </div>
@@ -794,12 +741,7 @@ export class WebMode {
           <!-- Location Selection Controls in this API Section -->
           <div class="toolbar-left" style="flex-wrap: wrap; gap: 0.75rem;">
             <button id="autoLocationBtn" class="btn-auto-loc" title="Auto-detect current location using device GPS">
-              <span style="display: inline-flex; align-items: center; color: currentColor;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-                  <circle cx="12" cy="10" r="3"/>
-                </svg>
-              </span>
+              <span>📍</span>
               <span id="autoLocationText">Auto (Device GPS)</span>
             </button>
 
@@ -1030,15 +972,7 @@ export class WebMode {
         <div class="section-header-banner">
           <div class="section-header-info">
             <h2 id="secComparisonHeading" class="section-title">
-              <span style="display: inline-flex; align-items: center; color: currentColor;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
-                  <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
-                  <path d="M7 21h10"/>
-                  <path d="M12 3v18"/>
-                  <path d="M3 7h18"/>
-                </svg>
-              </span>
+              <span>⚖️</span>
               Divergence
             </h2>
           </div>
@@ -1069,8 +1003,8 @@ export class WebMode {
               <h2>Divergence</h2>
             </div>
             <div class="chart-legend-custom">
-              <span class="legend-item"><span class="legend-line dashed" style="border-color: var(--chart-ext-temp);"></span> Ext Temp (°C)</span>
-              <span class="legend-item"><span class="legend-line dashed" style="border-color: var(--chart-ext-rh);"></span> Ext RH (%)</span>
+              <span class="legend-item"><span class="legend-line dashed" style="border-color: var(--chart-temp-line);"></span> Ext Temp (°C)</span>
+              <span class="legend-item"><span class="legend-line dashed" style="border-color: var(--chart-rh-line);"></span> Ext RH (%)</span>
               <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-temp);"></span> Sensor Temp (°C)</span>
               <span class="legend-item"><span class="legend-line" style="background-color: var(--chart-local-rh);"></span> Sensor RH (%)</span>
             </div>
@@ -1276,14 +1210,7 @@ export class WebMode {
     const packetBadge = el("#sensorPacketBadge");
     const rssiBadge = el("#sensorRssiBadge");
     if (packetBadge) packetBadge.textContent = `Packet: #${reading.packet_id}`;
-    if (rssiBadge) {
-      rssiBadge.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-        <line x1="12" y1="20" x2="12.01" y2="20"/>
-      </svg><span>${reading.wifi_rssi_dbm || -64} dBm</span>`;
-    }
+    if (rssiBadge) rssiBadge.textContent = `📶 ${reading.wifi_rssi_dbm || -64} dBm`;
 
     // --- Card 1: Temperature ---
     if (el("#sensorTempMainVal")) el("#sensorTempMainVal").innerHTML = `${tempC.toFixed(1)}<span class="metric-unit">°C</span>`;
@@ -1456,7 +1383,7 @@ export class WebMode {
     }
     const lastUpdatedLabel = el("#lastUpdatedLabel");
     if (lastUpdatedLabel) {
-      lastUpdatedLabel.textContent = `Updated: ${format24Time()}`;
+      lastUpdatedLabel.textContent = `Updated: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
 
     // --- Weather Card 1: Temperature ---
@@ -1613,8 +1540,6 @@ export class WebMode {
     const isDarkMode = document.documentElement.getAttribute("data-theme") === "dark";
     const gridColor = isDarkMode ? "rgba(233, 235, 238, 0.06)" : "rgba(27, 25, 22, 0.08)";
     const textColor = isDarkMode ? "#9aa1ab" : "#5e5950";
-    const tempColor = isDarkMode ? "#fb923c" : "#ea580c";
-    const rhColor = isDarkMode ? "#4ade80" : "#167a3f";
 
     this.sensorChart = new Chart(ctx, {
       type: "line",
@@ -1624,28 +1549,28 @@ export class WebMode {
           {
             label: "Sensor Temp (°C)",
             data: [],
-            borderColor: tempColor,
-            backgroundColor: (c) => getVerticalGradient(c, tempColor, isDarkMode ? 0.18 : 0.22),
-            borderWidth: 2,
+            borderColor: isDarkMode ? "#fb923c" : "#ea580c",
+            backgroundColor: isDarkMode ? "rgba(251, 146, 60, 0.08)" : "rgba(234, 88, 12, 0.06)",
+            borderWidth: 2.5,
             fill: true,
             tension: 0.25,
             yAxisID: "yTemp",
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            pointBackgroundColor: tempColor,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: isDarkMode ? "#fb923c" : "#ea580c",
             pointBorderColor: isDarkMode ? "#171a1f" : "#ffffff",
           },
           {
             label: "Sensor RH (%RH)",
             data: [],
-            borderColor: rhColor,
-            borderWidth: 2,
+            borderColor: isDarkMode ? "#4ade80" : "#167a3f",
+            borderWidth: 2.5,
             fill: false,
             tension: 0.25,
             yAxisID: "yHumidity",
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            pointBackgroundColor: rhColor,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: isDarkMode ? "#4ade80" : "#167a3f",
             pointBorderColor: isDarkMode ? "#171a1f" : "#ffffff",
           },
         ],
@@ -1663,10 +1588,7 @@ export class WebMode {
             bodyColor: isDarkMode ? "#9aa1ab" : "#5e5950",
             borderColor: isDarkMode ? "#e9ebee" : "#1b1916",
             borderWidth: 2,
-            padding: 8,
-            cornerRadius: 6,
-            titleFont: { family: "'Space Grotesk', sans-serif", weight: 600, size: 12 },
-            bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+            padding: 10,
           },
         },
         scales: {
@@ -1675,7 +1597,7 @@ export class WebMode {
             ticks: {
               color: textColor,
               font: { family: "'IBM Plex Mono', monospace", size: 10 },
-              maxTicksLimit: 6,
+              maxTicksLimit: 8,
             },
           },
           yTemp: {
@@ -1686,13 +1608,13 @@ export class WebMode {
             title: {
               display: true,
               text: "Temperature (°C)",
-              color: tempColor,
-              font: { family: "'Space Grotesk', sans-serif", weight: 600, size: 11 },
+              color: isDarkMode ? "#fb923c" : "#ea580c",
+              font: { family: "'Space Grotesk', sans-serif", weight: 600 },
             },
             grid: { color: gridColor },
             ticks: {
               color: textColor,
-              font: { family: "'IBM Plex Mono', monospace", size: 10 },
+              font: { family: "'IBM Plex Mono', monospace" },
             },
           },
           yHumidity: {
@@ -1701,13 +1623,13 @@ export class WebMode {
             title: {
               display: true,
               text: "Relative Humidity (%)",
-              color: rhColor,
-              font: { family: "'Space Grotesk', sans-serif", weight: 600, size: 11 },
+              color: isDarkMode ? "#4ade80" : "#167a3f",
+              font: { family: "'Space Grotesk', sans-serif", weight: 600 },
             },
             grid: { drawOnChartArea: false },
             ticks: {
               color: textColor,
-              font: { family: "'IBM Plex Mono', monospace", size: 10 },
+              font: { family: "'IBM Plex Mono', monospace" },
             },
             min: 0,
             max: 100,
@@ -1721,19 +1643,10 @@ export class WebMode {
    * Updates Section 1 Sensor Chart data in place with chart.update('none').
    */
   updateSensorChart() {
-    const emptyState = this.container.querySelector("#sensorChartEmptyState");
-    if (emptyState) {
-      emptyState.classList.toggle("hidden", this.sensorHistory.length > 0);
-    }
-
     if (!this.sensorChart) {
       this.initSensorChart();
       if (!this.sensorChart) return;
     }
-
-    const isDarkMode = document.documentElement.getAttribute("data-theme") === "dark";
-    const tempColor = isDarkMode ? "#fb923c" : "#ea580c";
-    const rhColor = isDarkMode ? "#4ade80" : "#167a3f";
 
     const labels = this.sensorHistory.map((pt) => pt.time);
     const tempData = this.sensorHistory.map((pt) => pt.temperature_c);
@@ -1748,17 +1661,7 @@ export class WebMode {
 
     this.sensorChart.data.labels = labels;
     this.sensorChart.data.datasets[0].data = tempData;
-    this.sensorChart.data.datasets[0].borderColor = tempColor;
-    this.sensorChart.data.datasets[0].backgroundColor = (c) =>
-      getVerticalGradient(c, tempColor, isDarkMode ? 0.18 : 0.22);
-    this.sensorChart.data.datasets[0].pointBackgroundColor = tempColor;
-    this.sensorChart.data.datasets[0].pointBorderColor = isDarkMode ? "#171a1f" : "#ffffff";
-
     this.sensorChart.data.datasets[1].data = rhData;
-    this.sensorChart.data.datasets[1].borderColor = rhColor;
-    this.sensorChart.data.datasets[1].pointBackgroundColor = rhColor;
-    this.sensorChart.data.datasets[1].pointBorderColor = isDarkMode ? "#171a1f" : "#ffffff";
-
     this.sensorChart.options.scales.yTemp.suggestedMin = yTempMin;
     this.sensorChart.options.scales.yTemp.suggestedMax = yTempMax;
     this.sensorChart.update("none");
@@ -1779,29 +1682,19 @@ export class WebMode {
     const ctx = this.container.querySelector("#hourlyWeatherChart");
     if (!ctx) return;
 
-    // Ensure labels are formatted as strict HH:MM
-    const labels = hourly.time.map((t) => {
-      if (typeof t === "string") {
-        if (t.includes("T")) return t.split("T")[1].slice(0, 5);
-        if (t.length > 5 && t.includes(":")) return t.slice(-5);
-        return t;
-      }
-      return String(t);
-    });
+    const labels = hourly.time;
     const tempData = hourly.temperature_2m;
     const rhData = hourly.relative_humidity_2m;
 
     const currentHour = new Date().getHours();
-    const pointRadii = labels.map((_, idx) => (idx === currentHour ? 5 : 2.5));
-    const pointHoverRadii = labels.map((_, idx) => (idx === currentHour ? 7 : 4.5));
+    const pointRadii = labels.map((_, idx) => (idx === currentHour ? 7 : 3));
+    const pointHoverRadii = labels.map((_, idx) => (idx === currentHour ? 9 : 5));
     const isDarkMode = document.documentElement.getAttribute("data-theme") === "dark";
     const gridColor = isDarkMode ? "rgba(233, 235, 238, 0.06)" : "rgba(27, 25, 22, 0.08)";
     const textColor = isDarkMode ? "#9aa1ab" : "#5e5950";
-    const tempColor = isDarkMode ? "#fa6a45" : "#d94b26";
-    const rhColor = isDarkMode ? "#38bdf8" : "#0284c7";
 
     const pointBackgrounds = labels.map((_, idx) =>
-      idx === currentHour ? (isDarkMode ? "#e9ebee" : "#1b1916") : tempColor
+      idx === currentHour ? (isDarkMode ? "#e9ebee" : "#1b1916") : (isDarkMode ? "#fa6a45" : "#d94b26")
     );
 
     if (this.weatherChart) {
@@ -1816,9 +1709,9 @@ export class WebMode {
           {
             label: "API Temp (°C)",
             data: tempData,
-            borderColor: tempColor,
-            backgroundColor: (c) => getVerticalGradient(c, tempColor, isDarkMode ? 0.18 : 0.22),
-            borderWidth: 2,
+            borderColor: isDarkMode ? "#fa6a45" : "#d94b26",
+            backgroundColor: isDarkMode ? "rgba(250, 106, 69, 0.08)" : "rgba(217, 75, 38, 0.06)",
+            borderWidth: 2.5,
             fill: true,
             tension: 0.35,
             yAxisID: "yTemp",
@@ -1831,22 +1724,19 @@ export class WebMode {
           {
             label: "API Humidity (%RH)",
             data: rhData,
-            borderColor: rhColor,
-            borderWidth: 2,
+            borderColor: isDarkMode ? "#38bdf8" : "#0284c7",
+            borderWidth: 2.5,
             fill: false,
             tension: 0.35,
             yAxisID: "yHumidity",
             pointRadius: 2.5,
             pointHoverRadius: 4.5,
-            pointBackgroundColor: rhColor,
-            pointBorderColor: isDarkMode ? "#171a1f" : "#ffffff",
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
           legend: { display: false },
@@ -1856,10 +1746,7 @@ export class WebMode {
             bodyColor: isDarkMode ? "#9aa1ab" : "#5e5950",
             borderColor: isDarkMode ? "#e9ebee" : "#1b1916",
             borderWidth: 2,
-            padding: 8,
-            cornerRadius: 6,
-            titleFont: { family: "'Space Grotesk', sans-serif", weight: 600, size: 12 },
-            bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+            padding: 10,
             callbacks: {
               title: (items) => {
                 const hourIdx = items[0]?.dataIndex;
@@ -1874,9 +1761,9 @@ export class WebMode {
             grid: { color: gridColor },
             ticks: {
               color: textColor,
-              font: { family: "'IBM Plex Mono', monospace", size: 10 },
-              callback: function (val, index) {
-                return index % 4 === 0 ? this.getLabelForValue(val) : "";
+              font: { family: "'IBM Plex Mono', monospace", size: 11 },
+              callback: function(val, index) {
+                return index % 3 === 0 ? this.getLabelForValue(val) : "";
               },
             },
           },
@@ -1886,13 +1773,13 @@ export class WebMode {
             title: {
               display: true,
               text: "Temperature (°C)",
-              color: tempColor,
-              font: { family: "'Space Grotesk', sans-serif", weight: 600, size: 11 },
+              color: isDarkMode ? "#fa6a45" : "#d94b26",
+              font: { family: "'Space Grotesk', sans-serif", weight: 600 },
             },
             grid: { color: gridColor },
             ticks: {
               color: textColor,
-              font: { family: "'IBM Plex Mono', monospace", size: 10 },
+              font: { family: "'IBM Plex Mono', monospace" },
             },
           },
           yHumidity: {
@@ -1901,13 +1788,13 @@ export class WebMode {
             title: {
               display: true,
               text: "Relative Humidity (%)",
-              color: rhColor,
-              font: { family: "'Space Grotesk', sans-serif", weight: 600, size: 11 },
+              color: isDarkMode ? "#38bdf8" : "#0284c7",
+              font: { family: "'Space Grotesk', sans-serif", weight: 600 },
             },
             grid: { drawOnChartArea: false },
             ticks: {
               color: textColor,
-              font: { family: "'IBM Plex Mono', monospace", size: 10 },
+              font: { family: "'IBM Plex Mono', monospace" },
             },
             min: 0,
             max: 100,
@@ -1991,11 +1878,6 @@ export class WebMode {
     const gridColor = isDarkMode ? "rgba(233, 235, 238, 0.06)" : "rgba(27, 25, 22, 0.08)";
     const textColor = isDarkMode ? "#9aa1ab" : "#5e5950";
 
-    const extTempColor = isDarkMode ? "#fdba74" : "#f97316";
-    const extRhColor = isDarkMode ? "#7dd3fc" : "#0ea5e9";
-    const sensorTempColor = isDarkMode ? "#fb923c" : "#ea580c";
-    const sensorRhColor = isDarkMode ? "#4ade80" : "#167a3f";
-
     this.comparisonChart = new Chart(ctx, {
       type: "line",
       data: {
@@ -2004,34 +1886,31 @@ export class WebMode {
           {
             label: "Ext Weather Temp (°C)",
             data: [],
-            borderColor: extTempColor,
+            borderColor: isDarkMode ? "#fa6a45" : "#d94b26",
             borderDash: [6, 4],
             borderWidth: 2,
             fill: false,
             pointRadius: 0,
-            pointHoverRadius: 0,
             yAxisID: "yTemp",
           },
           {
             label: "Ext Weather RH (%)",
             data: [],
-            borderColor: extRhColor,
+            borderColor: isDarkMode ? "#38bdf8" : "#0284c7",
             borderDash: [6, 4],
             borderWidth: 2,
             fill: false,
             pointRadius: 0,
-            pointHoverRadius: 0,
             yAxisID: "yRH",
           },
           {
             label: "Sensor DHT11 Temp (°C)",
             data: [],
-            borderColor: sensorTempColor,
-            borderWidth: 2,
+            borderColor: isDarkMode ? "#fb923c" : "#ea580c",
+            borderWidth: 2.5,
             fill: false,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            pointBackgroundColor: sensorTempColor,
+            pointRadius: 3.5,
+            pointBackgroundColor: isDarkMode ? "#fb923c" : "#ea580c",
             pointBorderColor: isDarkMode ? "#171a1f" : "#ffffff",
             yAxisID: "yTemp",
             tension: 0.2,
@@ -2039,12 +1918,11 @@ export class WebMode {
           {
             label: "Sensor DHT11 RH (%)",
             data: [],
-            borderColor: sensorRhColor,
-            borderWidth: 2,
+            borderColor: isDarkMode ? "#4ade80" : "#167a3f",
+            borderWidth: 2.5,
             fill: false,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            pointBackgroundColor: sensorRhColor,
+            pointRadius: 3.5,
+            pointBackgroundColor: isDarkMode ? "#4ade80" : "#167a3f",
             pointBorderColor: isDarkMode ? "#171a1f" : "#ffffff",
             yAxisID: "yRH",
             tension: 0.2,
@@ -2064,10 +1942,7 @@ export class WebMode {
             bodyColor: isDarkMode ? "#9aa1ab" : "#5e5950",
             borderColor: isDarkMode ? "#e9ebee" : "#1b1916",
             borderWidth: 2,
-            padding: 8,
-            cornerRadius: 6,
-            titleFont: { family: "'Space Grotesk', sans-serif", weight: 600, size: 12 },
-            bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+            padding: 10,
           },
         },
         scales: {
@@ -2076,7 +1951,7 @@ export class WebMode {
             ticks: {
               color: textColor,
               font: { family: "'IBM Plex Mono', monospace", size: 10 },
-              maxTicksLimit: 6,
+              maxTicksLimit: 8,
             },
           },
           yTemp: {
@@ -2087,13 +1962,13 @@ export class WebMode {
             title: {
               display: true,
               text: "Temperature (°C)",
-              color: sensorTempColor,
-              font: { family: "'Space Grotesk', sans-serif", weight: 600, size: 11 },
+              color: isDarkMode ? "#fb923c" : "#ea580c",
+              font: { family: "'Space Grotesk', sans-serif", weight: 600 },
             },
             grid: { color: gridColor },
             ticks: {
               color: textColor,
-              font: { family: "'IBM Plex Mono', monospace", size: 10 },
+              font: { family: "'IBM Plex Mono', monospace" },
             },
           },
           yRH: {
@@ -2102,13 +1977,13 @@ export class WebMode {
             title: {
               display: true,
               text: "Relative Humidity (%)",
-              color: sensorRhColor,
-              font: { family: "'Space Grotesk', sans-serif", weight: 600, size: 11 },
+              color: isDarkMode ? "#4ade80" : "#167a3f",
+              font: { family: "'Space Grotesk', sans-serif", weight: 600 },
             },
             grid: { drawOnChartArea: false },
             ticks: {
               color: textColor,
-              font: { family: "'IBM Plex Mono', monospace", size: 10 },
+              font: { family: "'IBM Plex Mono', monospace" },
             },
             min: 0,
             max: 100,
@@ -2126,12 +2001,6 @@ export class WebMode {
       this.initComparisonChart();
       if (!this.comparisonChart) return;
     }
-
-    const isDarkMode = document.documentElement.getAttribute("data-theme") === "dark";
-    const extTempColor = isDarkMode ? "#fdba74" : "#f97316";
-    const extRhColor = isDarkMode ? "#7dd3fc" : "#0ea5e9";
-    const sensorTempColor = isDarkMode ? "#fb923c" : "#ea580c";
-    const sensorRhColor = isDarkMode ? "#4ade80" : "#167a3f";
 
     const weatherCurrent = this.weatherData?.current;
     const labels = this.sensorHistory.map((pt) => pt.time);
@@ -2154,21 +2023,9 @@ export class WebMode {
 
     this.comparisonChart.data.labels = labels;
     this.comparisonChart.data.datasets[0].data = extTempArr;
-    this.comparisonChart.data.datasets[0].borderColor = extTempColor;
-
     this.comparisonChart.data.datasets[1].data = extRhArr;
-    this.comparisonChart.data.datasets[1].borderColor = extRhColor;
-
     this.comparisonChart.data.datasets[2].data = localTempArr;
-    this.comparisonChart.data.datasets[2].borderColor = sensorTempColor;
-    this.comparisonChart.data.datasets[2].pointBackgroundColor = sensorTempColor;
-    this.comparisonChart.data.datasets[2].pointBorderColor = isDarkMode ? "#171a1f" : "#ffffff";
-
     this.comparisonChart.data.datasets[3].data = localRhArr;
-    this.comparisonChart.data.datasets[3].borderColor = sensorRhColor;
-    this.comparisonChart.data.datasets[3].pointBackgroundColor = sensorRhColor;
-    this.comparisonChart.data.datasets[3].pointBorderColor = isDarkMode ? "#171a1f" : "#ffffff";
-
     this.comparisonChart.options.scales.yTemp.suggestedMin = yCompTempMin;
     this.comparisonChart.options.scales.yTemp.suggestedMax = yCompTempMax;
     this.comparisonChart.update("none");

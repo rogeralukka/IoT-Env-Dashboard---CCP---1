@@ -15,6 +15,7 @@ from backend.services.iot_core import iot_core
 from backend.services.lambda_processor import ValidationError
 from backend.services.cloudwatch import cloudwatch
 from backend.events import broadcaster
+from backend.services.aws_live_bridge import aws_live_bridge
 
 router = APIRouter(prefix="/api", tags=["Device & Streaming"])
 
@@ -28,6 +29,7 @@ async def publish_telemetry(packet: TelemetryPacket):
     3. Validates hardware operational constraints, executes psychrometric computations,
        saves to S3, and updates CloudWatch metrics.
     4. Broadcasts processed data to live SSE subscribers.
+    5. Asynchronously forwards packet to live AWS IoT Core (if configured).
     """
     try:
         processed_data = iot_core.publish(
@@ -48,6 +50,16 @@ async def publish_telemetry(packet: TelemetryPacket):
 
     # Broadcast to active SSE listeners
     broadcaster.publish_nowait("reading", processed_data)
+
+    # Asynchronously forward to real AWS IoT Core
+    if aws_live_bridge.is_configured:
+        asyncio.create_task(
+            asyncio.to_thread(
+                aws_live_bridge.publish_to_iot_core,
+                "iot/esp32/dht11/telemetry",
+                packet.model_dump()
+            )
+        )
 
     return processed_data
 
