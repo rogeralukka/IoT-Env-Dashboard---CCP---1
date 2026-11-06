@@ -59,6 +59,46 @@ def get_real_aws_status() -> Dict[str, Any]:
     return aws_live_bridge.get_live_aws_status()
 
 
+@router.post("/credentials", summary="Update AWS Academy temporary credentials on the fly")
+def update_credentials(payload: Dict[str, str]) -> Dict[str, Any]:
+    """
+    Parses and applies AWS credentials pasted directly from AWS Academy console.
+    Accepts raw block (aws_access_key_id=... etc) or JSON fields.
+    """
+    raw_text = payload.get("raw", "")
+    access_key = payload.get("aws_access_key_id")
+    secret_key = payload.get("aws_secret_access_key")
+    session_token = payload.get("aws_session_token")
+
+    if raw_text:
+        for line in raw_text.splitlines():
+            line = line.strip()
+            if "=" in line:
+                k, v = line.split("=", 1)
+                k = k.strip().lower()
+                v = v.strip()
+                if "access_key_id" in k:
+                    access_key = v
+                elif "secret_access_key" in k:
+                    secret_key = v
+                elif "session_token" in k:
+                    session_token = v
+
+    if not access_key or not secret_key:
+        return {"status": "ERROR", "message": "Missing aws_access_key_id or aws_secret_access_key"}
+
+    try:
+        aws_live_bridge.reconfigure(
+            access_key=access_key,
+            secret_key=secret_key,
+            session_token=session_token,
+            region="us-east-1"
+        )
+        return {"status": "SUCCESS", "message": "AWS Academy credentials updated and connected successfully!"}
+    except Exception as e:
+        return {"status": "ERROR", "message": str(e)}
+
+
 @router.post("/reset", summary="Reset session telemetry and virtual AWS services")
 def reset_session() -> Dict[str, Any]:
     """

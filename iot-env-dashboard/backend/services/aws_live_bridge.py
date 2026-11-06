@@ -72,6 +72,46 @@ class AWSLiveBridge:
             except Exception as e:
                 logger.warning("AWS Live Bridge initialization failed: %s", e)
 
+    def reconfigure(self, access_key: str, secret_key: str, session_token: Optional[str] = None, region: str = "us-east-1"):
+        """Reconfigures AWS session on the fly without server restart and updates .env files."""
+        import boto3
+        self.region = region
+        self.session = boto3.Session(
+            aws_access_key_id=access_key.strip(),
+            aws_secret_access_key=secret_key.strip(),
+            aws_session_token=session_token.strip() if session_token else None,
+            region_name=self.region
+        )
+        self.s3 = self.session.client("s3")
+        self.cw = self.session.client("cloudwatch")
+        self.dynamodb = self.session.resource("dynamodb")
+        self.dynamodb_table = self.dynamodb.Table("IoTEnvironmentalReadings")
+
+        if self.iot_endpoint:
+            try:
+                self.iot_data = self.session.client("iot-data", endpoint_url=f"https://{self.iot_endpoint}")
+            except Exception:
+                self.iot_data = None
+
+        self.is_configured = True
+        logger.info("AWS Live Bridge reconfigured successfully on region %s", self.region)
+
+        # Persist to .env files
+        env_content = f"""AWS_ACCESS_KEY_ID={access_key.strip()}
+AWS_SECRET_ACCESS_KEY={secret_key.strip()}
+AWS_SESSION_TOKEN={session_token.strip() if session_token else ''}
+AWS_DEFAULT_REGION={self.region}
+AWS_S3_BUCKET={self.bucket_name or 'iot-env-datalake-218062175263'}
+AWS_IOT_ENDPOINT={self.iot_endpoint or 'a4ickajtlfn5p-ats.iot.us-east-1.amazonaws.com'}
+AWS_ACCOUNT_ID={self.account_id or '218062175263'}
+"""
+        for p in [Path(__file__).resolve().parents[2] / ".env", Path(__file__).resolve().parents[3] / ".env"]:
+            try:
+                with open(p, "w") as f:
+                    f.write(env_content)
+            except Exception as e:
+                logger.warning("Failed to persist updated .env to %s: %s", p, e)
+
     def forward_reading(self, record: Dict[str, Any]):
         """Forwards live processed telemetry record directly into AWS DynamoDB and S3."""
         if not self.is_configured:
